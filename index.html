@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Nexus Marketplace</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; margin: 0; padding: 20px; color: #333; }
+        h1 { text-align: center; color: #2c3e50; }
+        .container { display: flex; gap: 20px; max-width: 1200px; margin: 0 auto; }
+        .panel { background: white; border-radius: 8px; padding: 20px; width: 50%; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        h2 { border-bottom: 2px solid #3498db; padding-bottom: 5px; margin-top: 0; }
+        .form-group { margin-bottom: 10px; }
+        input { width: calc(100% - 16px); padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+        button { background-color: #3498db; color: white; border: none; padding: 10px 15px; border-radius: 4px; cursor: pointer; width: 100%; font-weight: bold; }
+        button:hover { background-color: #2980b9; }
+        .item { border: 1px solid #eee; padding: 15px; margin-bottom: 15px; border-radius: 4px; background: #fafafa; }
+        .item img { max-width: 100px; display: block; margin: 10px 0; border-radius: 4px; }
+        .badge { background: #e74c3c; color: white; padding: 2px 6px; border-radius: 10px; font-size: 0.8em; }
+        .success-badge { background: #2ecc71; color: white; padding: 2px 6px; border-radius: 10px; font-size: 0.8em; }
+    </style>
+</head>
+<body>
+
+    <h1>Nexus Digital Coupon Marketplace</h1>
+
+    <div class="container">
+        <div class="panel">
+            <h2>Admin Mode 🛠️</h2>
+            
+            <div style="background: #fdf2e9; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                <h3>Create New Coupon</h3>
+                <div class="form-group"><input type="text" id="name" placeholder="Product Name (e.g., Amazon $50)" value="Amazon $50 Gift Card"></div>
+                <div class="form-group"><input type="text" id="desc" placeholder="Description" value="Digital code for Amazon.com"></div>
+                <div class="form-group"><input type="text" id="image" placeholder="Image URL" value="https://upload.wikimedia.org/wikipedia/commons/a/a9/Amazon_logo.svg"></div>
+                <div class="form-group"><input type="number" id="cost" placeholder="Cost Price ($)" value="40"></div>
+                <div class="form-group"><input type="number" id="margin" placeholder="Margin Percentage (%)" value="25"></div>
+                <div class="form-group"><input type="text" id="valType" placeholder="Value Type (STRING or IMAGE)" value="STRING"></div>
+                <div class="form-group"><input type="text" id="val" placeholder="The actual coupon value/code" value="AMZN-ABCD-1234"></div>
+                <button onclick="createCoupon()">Create Product</button>
+            </div>
+
+            <h3>All Inventory (Admin View)</h3>
+            <button onclick="loadAdminCoupons()" style="background-color: #95a5a6; margin-bottom: 10px;">Refresh Inventory</button>
+            <div id="admin-list"></div>
+        </div>
+
+        <div class="panel">
+            <h2>Customer Mode 🛒</h2>
+            <h3>Available for Purchase</h3>
+            <button onclick="loadCustomerCoupons()" style="background-color: #95a5a6; margin-bottom: 10px;">Refresh Storefront</button>
+            <div id="customer-list"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = "http://localhost:8000";
+
+        // Admin: Create Product
+        async function createCoupon() {
+            const payload = {
+                name: document.getElementById('name').value,
+                description: document.getElementById('desc').value,
+                image_url: document.getElementById('image').value,
+                cost_price: parseFloat(document.getElementById('cost').value),
+                margin_percentage: parseFloat(document.getElementById('margin').value),
+                value_type: document.getElementById('valType').value,
+                value: document.getElementById('val').value
+            };
+
+            try {
+                const res = await fetch(`${API_BASE}/admin/products`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                if (res.ok) {
+                    alert("Coupon created successfully!");
+                    loadAdminCoupons();
+                    loadCustomerCoupons();
+                } else {
+                    const error = await res.json();
+                    alert("Error creating coupon:\n" + (error.message || JSON.stringify(error)));
+                }
+            } catch (err) { alert("Server connection error"); }
+        }
+
+        // Admin: Load all products
+        async function loadAdminCoupons() {
+            try {
+                const res = await fetch(`${API_BASE}/admin/products`);
+                if (!res.ok) return;
+                const products = await res.json();
+                const list = document.getElementById('admin-list');
+                list.innerHTML = "";
+                products.forEach(p => {
+                    const statusBadge = p.is_sold ? `<span class="badge">SOLD</span>` : `<span class="success-badge">AVAILABLE</span>`;
+                    list.innerHTML += `
+                        <div class="item">
+                            <strong>${p.name}</strong> ${statusBadge}<br>
+                            <small>ID: ${p.id}</small><br>
+                            Cost: $${p.cost_price} | Margin: ${p.margin_percentage}% | <strong>Min Sell Price: $${p.minimum_sell_price}</strong><br>
+                            Hidden Value: ${p.value}
+                        </div>`;
+                });
+            } catch (err) { console.error("Error loading admin products:", err); }
+        }
+
+        // Customer: Load available products
+        async function loadCustomerCoupons() {
+            try {
+                // In a real app, customers might not need tokens just to view, but based on our previous setup, we pass it or use a public route.
+                const res = await fetch(`${API_BASE}/api/v1/products`, {
+                headers: { 'Authorization': `Bearer my-secret-token` }
+       });
+                if (!res.ok) return;
+                const products = await res.json();
+                const list = document.getElementById('customer-list');
+                list.innerHTML = "";
+                
+                if(products.length === 0) { list.innerHTML = "<p>No coupons currently available.</p>"; }
+
+                products.forEach(p => {
+                    list.innerHTML += `
+                        <div class="item" id="item-${p.id}">
+                            <strong>${p.name}</strong><br>
+                            <img src="${p.image_url}" alt="product image">
+                            <p>${p.description}</p>
+                            <p><strong>Price: $${p.price}</strong></p>
+                            <button onclick="purchaseDirect('${p.id}')" style="background-color: #27ae60;">Buy Now</button>
+                        </div>`;
+                });
+            } catch (err) { console.error("Error loading customer products:", err); }
+        }
+
+        // Customer: Purchase product directly (No Reseller Price Needed)
+        async function purchaseDirect(id) {
+            try {
+                const res = await fetch(`${API_BASE}/customer/products/${id}/buy`, {
+                    method: 'POST'
+                });
+
+                if (res.ok) {
+                    const data = await res.json();
+                    alert(`🎉 Purchase Successful!\n\nHere is your digital item:\n${data.value}`);
+                    loadAdminCoupons();
+                    loadCustomerCoupons();
+                } else {
+                    const error = await res.json();
+                    alert("Purchase Failed:\n" + (error.message || "Unknown error"));
+                }
+            } catch (err) { console.error("Purchase error:", err); }
+        }
+
+        // Initialize lists on load
+        loadAdminCoupons();
+        loadCustomerCoupons();
+    </script>
+</body>
+</html>
