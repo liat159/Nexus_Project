@@ -42,8 +42,8 @@ python -m uvicorn main:app --reload
 Option B: Using Docker
 
 Bash
-docker build -t nexus-backend .
-docker run -d -p 8000:8000 --name nexus-app nexus-backend
+docker build -t nexus-project .
+docker run -d -p 8000:8000 --name nexus-app nexus-project
 2. Open the Frontend UI
 Once the backend is running (locally or via Docker on port 8000), simply open the index.html file in any modern web browser. The UI includes Admin creation/inventory and a Customer storefront.
 
@@ -78,7 +78,7 @@ curl -X 'POST' \
 Bash
 curl -X 'POST' \
   'http://localhost:8000/api/v1/products/{product_id}/purchase' \
-  -H 'Authorization: Bearer my-secret-token' \
+  -H 'Authorization: my-secret-token' \
   -H 'Content-Type: application/json' \
   -d '{
   "reseller_price": 120.00
